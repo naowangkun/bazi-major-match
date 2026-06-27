@@ -424,15 +424,19 @@ const MAJORS = [
 //  INIT: populate form options
 // ============================================================
 (function init() {
-  const tSel = document.getElementById('birthTime');
-  SHICHEN.forEach((s,i) => { const o = document.createElement('option'); o.value = i; o.textContent = s.n; if (i===5) o.selected = true; tSel.appendChild(o); });
-  const pSel = document.getElementById('province');
-  PROVINCES.forEach(p => { const o = document.createElement('option'); o.value = p; o.textContent = p; pSel.appendChild(o); });
-  const rSel = document.getElementById('preferRegion');
-  REGIONS.forEach(r => { const o = document.createElement('option'); o.value = r.v; o.textContent = r.n; rSel.appendChild(o); });
-  const cSel = document.getElementById('preferCategory');
-  CATEGORIES.forEach(c => { const o = document.createElement('option'); o.value = c.v; o.textContent = c.n; cSel.appendChild(o); });
-  renderBrowseTable(); // pre-render browse
+  try {
+    const tSel = document.getElementById('birthTime');
+    if (!tSel) throw new Error('birthTime select not found');
+    SHICHEN.forEach((s,i) => { const o = document.createElement('option'); o.value = i; o.textContent = s.n; if (i===5) o.selected = true; tSel.appendChild(o); });
+    const pSel = document.getElementById('province');
+    if (pSel) PROVINCES.forEach(p => { const o = document.createElement('option'); o.value = p; o.textContent = p; pSel.appendChild(o); });
+    const rSel = document.getElementById('preferRegion');
+    if (rSel) REGIONS.forEach(r => { const o = document.createElement('option'); o.value = r.v; o.textContent = r.n; rSel.appendChild(o); });
+    const cSel = document.getElementById('preferCategory');
+    if (cSel) CATEGORIES.forEach(c => { const o = document.createElement('option'); o.value = c.v; o.textContent = c.n; cSel.appendChild(o); });
+    var browseEl = document.getElementById('tab-browse');
+    if (browseEl) renderBrowseTable();
+  } catch(e) { console.error('Init error:', e); }
 })();
 
 // ============================================================
@@ -602,6 +606,7 @@ function getStars(score) {
 //  MAIN
 // ============================================================
 function analyze() {
+  try {
   const dateVal = document.getElementById('birthDate').value;
   const calType = document.getElementById('calType').value;
   const birthIdx = parseInt(document.getElementById('birthTime').value);
@@ -677,6 +682,7 @@ function analyze() {
   document.getElementById('resultSection').style.display = 'block';
   document.getElementById('inputCard').style.display = 'none';
   document.getElementById('resultSection').scrollIntoView({ behavior:'smooth' });
+  } catch(e) { alert('分析出错: ' + e.message); console.error(e); }
 }
 
 // ============================================================
@@ -926,7 +932,7 @@ function toast(msg) {
 document.getElementById('birthDate').addEventListener('keydown', e => { if (e.key === 'Enter') analyze(); });
 
 // Pre-render browse on page load
-window.addEventListener('DOMContentLoaded', () => renderBrowseTable());
+window.addEventListener('DOMContentLoaded', () => { try { renderBrowseTable(); } catch(e) {} });
 </script>
 </body>
 </html>
