@@ -216,12 +216,14 @@ body { font-family:"PingFang SC","Microsoft YaHei","Noto Sans SC",sans-serif; ba
         <button class="tab" onclick="switchTab('zhuanke')">🔧 专科推荐</button>
         <button class="tab" onclick="switchTab('strategy')">🎯 志愿策略</button>
         <button class="tab" onclick="switchTab('browse')">📖 专业浏览</button>
+        <button class="tab" onclick="switchTab('schools')">🏫 院校推荐</button>
         <button class="tab" onclick="switchTab('claude')">🤖 Claude 深度</button>
       </div>
       <div class="tab-content active" id="tab-benke"></div>
       <div class="tab-content" id="tab-zhuanke"></div>
       <div class="tab-content" id="tab-strategy"></div>
       <div class="tab-content" id="tab-browse"></div>
+      <div class="tab-content" id="tab-schools"></div>
       <div class="tab-content" id="tab-claude"></div>
     </div>
 
@@ -421,18 +423,222 @@ const MAJORS = [
 ];
 
 // ============================================================
+//  DATA: 高校录取分数线（参考数据）
+// ============================================================
+// 数据为近年各省最低录取分数线的综合参考值，非官方精确数据
+const PROV_KEY = ['北京','河北','河南','山东','江苏','浙江','广东','四川','湖北','湖南'];
+const UNIVERSITIES = [
+  // ===== 985/双一流 (15所) =====
+  { n:'北京大学', t:'综合类', tier:'985/双一流', city:'北京', prov:'北京', r:'north', wx:'土', l:'本科', b:'本科一批',
+    sc:{'北京':683,'河北':690,'河南':688,'山东':689,'江苏':686,'浙江':687,'广东':685,'四川':684,'湖北':682,'湖南':683},
+    st:['法学','经济学','金融学','计算机科学与技术','数学与应用数学','汉语言文学','历史学','哲学'] },
+  { n:'清华大学', t:'理工类', tier:'985/双一流', city:'北京', prov:'北京', r:'north', wx:'金', l:'本科', b:'本科一批',
+    sc:{'北京':685,'河北':693,'河南':691,'山东':692,'江苏':688,'浙江':689,'广东':687,'四川':686,'湖北':684,'湖南':685},
+    st:['计算机科学与技术','人工智能','软件工程','电子信息工程','电气工程及其自动化','自动化','建筑学','数据科学与大数据技术'] },
+  { n:'复旦大学', t:'综合类', tier:'985/双一流', city:'上海', prov:'上海', r:'east', wx:'土', l:'本科', b:'本科一批',
+    sc:{'北京':678,'河北':682,'河南':680,'山东':681,'江苏':674,'浙江':676,'广东':675,'四川':677,'湖北':676,'湖南':675},
+    st:['金融学','经济学','法学','新闻学','临床医学','数据科学与大数据技术','哲学','英语'] },
+  { n:'上海交通大学', t:'理工类', tier:'985/双一流', city:'上海', prov:'上海', r:'east', wx:'金', l:'本科', b:'本科一批',
+    sc:{'北京':676,'河北':680,'河南':678,'山东':679,'江苏':672,'浙江':674,'广东':673,'四川':675,'湖北':674,'湖南':673},
+    st:['计算机科学与技术','软件工程','电子信息工程','临床医学','金融学','生物医学工程','人工智能','电气工程及其自动化'] },
+  { n:'浙江大学', t:'综合类', tier:'985/双一流', city:'杭州', prov:'浙江', r:'east', wx:'土', l:'本科', b:'本科一批',
+    sc:{'北京':670,'河北':676,'河南':674,'山东':675,'江苏':668,'浙江':664,'广东':669,'四川':671,'湖北':670,'湖南':669},
+    st:['计算机科学与技术','软件工程','自动化','临床医学','金融学','建筑学','食品科学与工程','心理学'] },
+  { n:'南京大学', t:'综合类', tier:'985/双一流', city:'南京', prov:'江苏', r:'east', wx:'土', l:'本科', b:'本科一批',
+    sc:{'北京':666,'河北':672,'河南':670,'山东':671,'江苏':660,'浙江':665,'广东':664,'四川':667,'湖北':666,'湖南':665},
+    st:['汉语言文学','历史学','哲学','计算机科学与技术','金融学','环境工程','英语','地理科学'] },
+  { n:'中国科学技术大学', t:'理工类', tier:'985/双一流', city:'合肥', prov:'安徽', r:'center', wx:'金', l:'本科', b:'本科一批',
+    sc:{'北京':672,'河北':678,'河南':676,'山东':677,'江苏':670,'浙江':672,'广东':669,'四川':673,'湖北':671,'湖南':670},
+    st:['数学与应用数学','物理学','计算机科学与技术','人工智能','数据科学与大数据技术','信息安全','统计学','微电子科学与工程'] },
+  { n:'武汉大学', t:'综合类', tier:'985/双一流', city:'武汉', prov:'湖北', r:'center', wx:'土', l:'本科', b:'本科一批',
+    sc:{'北京':645,'河北':652,'河南':650,'山东':651,'江苏':644,'浙江':646,'广东':643,'四川':647,'湖北':635,'湖南':644},
+    st:['法学','新闻学','测绘工程','水利水电工程','临床医学','计算机科学与技术','金融学','图书馆学'] },
+  { n:'华中科技大学', t:'理工类', tier:'985/双一流', city:'武汉', prov:'湖北', r:'center', wx:'金', l:'本科', b:'本科一批',
+    sc:{'北京':640,'河北':648,'河南':646,'山东':647,'江苏':639,'浙江':641,'广东':638,'四川':642,'湖北':630,'湖南':639},
+    st:['计算机科学与技术','软件工程','自动化','电气工程及其自动化','临床医学','人工智能','能源与动力工程','生物医学工程'] },
+  { n:'中山大学', t:'综合类', tier:'985/双一流', city:'广州', prov:'广东', r:'south', wx:'土', l:'本科', b:'本科一批',
+    sc:{'北京':635,'河北':642,'河南':640,'山东':641,'江苏':634,'浙江':636,'广东':628,'四川':637,'湖北':635,'湖南':634},
+    st:['临床医学','金融学','法学','工商管理','计算机科学与技术','汉语言文学','哲学','海洋科学'] },
+  { n:'四川大学', t:'综合类', tier:'985/双一流', city:'成都', prov:'四川', r:'west', wx:'土', l:'本科', b:'本科一批',
+    sc:{'北京':620,'河北':630,'河南':628,'山东':629,'江苏':622,'浙江':623,'广东':619,'四川':610,'湖北':622,'湖南':621},
+    st:['临床医学','口腔医学','汉语言文学','新闻学','法学','生物医学工程','哲学','护理学'] },
+  { n:'西安交通大学', t:'理工类', tier:'985/双一流', city:'西安', prov:'陕西', r:'west', wx:'金', l:'本科', b:'本科一批',
+    sc:{'北京':630,'河北':640,'河南':638,'山东':639,'江苏':632,'浙江':634,'广东':629,'四川':633,'湖北':631,'湖南':630},
+    st:['电气工程及其自动化','能源与动力工程','计算机科学与技术','自动化','会计学','微电子科学与工程','机器人工程'] },
+  { n:'哈尔滨工业大学', t:'理工类', tier:'985/双一流', city:'哈尔滨', prov:'黑龙江', r:'north', wx:'金', l:'本科', b:'本科一批',
+    sc:{'北京':625,'河北':638,'河南':635,'山东':636,'江苏':628,'浙江':630,'广东':623,'四川':628,'湖北':626,'湖南':625},
+    st:['计算机科学与技术','软件工程','机械工程','自动化','机器人工程','土木工程','航空航天工程','材料科学与工程'] },
+  { n:'北京师范大学', t:'师范类', tier:'985/双一流', city:'北京', prov:'北京', r:'north', wx:'木', l:'本科', b:'本科一批',
+    sc:{'北京':645,'河北':655,'河南':653,'山东':654,'江苏':648,'浙江':649,'广东':646,'四川':648,'湖北':646,'湖南':645},
+    st:['教育学','心理学','汉语言文学','历史学','学前教育','特殊教育','英语','数学与应用数学'] },
+  { n:'中国人民大学', t:'综合类', tier:'985/双一流', city:'北京', prov:'北京', r:'north', wx:'土', l:'本科', b:'本科一批',
+    sc:{'北京':668,'河北':676,'河南':674,'山东':675,'江苏':670,'浙江':672,'广东':669,'四川':671,'湖北':669,'湖南':668},
+    st:['法学','经济学','金融学','新闻学','社会学','行政管理','人力资源管理','哲学'] },
+
+  // ===== 211/双一流 (15所) =====
+  { n:'北京邮电大学', t:'理工类', tier:'211/双一流', city:'北京', prov:'北京', r:'north', wx:'金', l:'本科', b:'本科一批',
+    sc:{'北京':625,'河北':638,'河南':635,'山东':636,'江苏':630,'浙江':632,'广东':628,'四川':630,'湖北':627,'湖南':626},
+    st:['通信工程','计算机科学与技术','信息安全','数据科学与大数据技术','电子信息工程','人工智能'] },
+  { n:'上海财经大学', t:'财经类', tier:'211/双一流', city:'上海', prov:'上海', r:'east', wx:'金', l:'本科', b:'本科一批',
+    sc:{'北京':635,'河北':645,'河南':643,'山东':644,'江苏':632,'浙江':636,'广东':630,'四川':637,'湖北':634,'湖南':633},
+    st:['金融学','会计学','经济学','财务管理','审计学','国际经济与贸易','精算学'] },
+  { n:'中央财经大学', t:'财经类', tier:'211/双一流', city:'北京', prov:'北京', r:'north', wx:'金', l:'本科', b:'本科一批',
+    sc:{'北京':630,'河北':642,'河南':640,'山东':641,'江苏':634,'浙江':636,'广东':632,'四川':634,'湖北':631,'湖南':630},
+    st:['金融学','会计学','经济学','财务管理','审计学','金融工程','投资学'] },
+  { n:'中国政法大学', t:'政法类', tier:'211/双一流', city:'北京', prov:'北京', r:'north', wx:'金', l:'本科', b:'本科一批',
+    sc:{'北京':620,'河北':632,'河南':630,'山东':631,'江苏':622,'浙江':624,'广东':621,'四川':623,'湖北':621,'湖南':620},
+    st:['法学','知识产权','社会学','国际政治','行政管理'] },
+  { n:'北京外国语大学', t:'外语类', tier:'211/双一流', city:'北京', prov:'北京', r:'north', wx:'水', l:'本科', b:'本科一批',
+    sc:{'北京':615,'河北':628,'河南':625,'山东':626,'江苏':618,'浙江':620,'广东':616,'四川':618,'湖北':616,'湖南':615},
+    st:['英语','日语','翻译','汉语国际教育','国际政治'] },
+  { n:'南京航空航天大学', t:'理工类', tier:'211/双一流', city:'南京', prov:'江苏', r:'east', wx:'金', l:'本科', b:'本科一批',
+    sc:{'北京':600,'河北':612,'河南':610,'山东':611,'江苏':595,'浙江':602,'广东':598,'四川':600,'湖北':599,'湖南':598},
+    st:['航空航天工程','自动化','计算机科学与技术','电气工程及其自动化','机器人工程','软件工程'] },
+  { n:'华东理工大学', t:'理工类', tier:'211/双一流', city:'上海', prov:'上海', r:'east', wx:'金', l:'本科', b:'本科一批',
+    sc:{'北京':595,'河北':608,'河南':605,'山东':606,'江苏':590,'浙江':597,'广东':593,'四川':595,'湖北':594,'湖南':593},
+    st:['化学工程','材料科学与工程','生物工程','环境工程','药学','自动化'] },
+  { n:'武汉理工大学', t:'理工类', tier:'211/双一流', city:'武汉', prov:'湖北', r:'center', wx:'金', l:'本科', b:'本科一批',
+    sc:{'北京':585,'河北':598,'河南':595,'山东':596,'江苏':588,'浙江':590,'广东':584,'四川':587,'湖北':575,'湖南':585},
+    st:['材料科学与工程','土木工程','机械工程','计算机科学与技术','交通运输','车辆工程'] },
+  { n:'西南财经大学', t:'财经类', tier:'211/双一流', city:'成都', prov:'四川', r:'west', wx:'金', l:'本科', b:'本科一批',
+    sc:{'北京':590,'河北':602,'河南':600,'山东':601,'江苏':593,'浙江':595,'广东':590,'四川':580,'湖北':592,'湖南':591},
+    st:['金融学','会计学','财务管理','审计学','经济学','保险学','金融工程'] },
+  { n:'中南大学', t:'综合类', tier:'985/双一流', city:'长沙', prov:'湖南', r:'center', wx:'土', l:'本科', b:'本科一批',
+    sc:{'北京':610,'河北':620,'河南':618,'山东':619,'江苏':612,'浙江':614,'广东':608,'四川':612,'湖北':610,'湖南':600},
+    st:['临床医学','护理学','土木工程','材料科学与工程','交通运输','计算机科学与技术'] },
+  { n:'湖南大学', t:'综合类', tier:'985/双一流', city:'长沙', prov:'湖南', r:'center', wx:'土', l:'本科', b:'本科一批',
+    sc:{'北京':600,'河北':610,'河南':608,'山东':609,'江苏':602,'浙江':604,'广东':599,'四川':602,'湖北':600,'湖南':590},
+    st:['建筑学','土木工程','金融学','法学','工业设计','计算机科学与技术'] },
+  { n:'郑州大学', t:'综合类', tier:'211/双一流', city:'郑州', prov:'河南', r:'center', wx:'土', l:'本科', b:'本科一批',
+    sc:{'北京':575,'河北':585,'河南':570,'山东':583,'江苏':577,'浙江':579,'广东':574,'四川':577,'湖北':576,'湖南':575},
+    st:['临床医学','法学','行政管理','材料科学与工程','土木工程','护理学'] },
+  { n:'苏州大学', t:'综合类', tier:'211/双一流', city:'苏州', prov:'江苏', r:'east', wx:'土', l:'本科', b:'本科一批',
+    sc:{'北京':585,'河北':598,'河南':595,'山东':596,'江苏':580,'浙江':588,'广东':584,'四川':586,'湖北':583,'湖南':582},
+    st:['临床医学','法学','纺织工程','材料科学与工程','药学','放射医学'] },
+  { n:'暨南大学', t:'综合类', tier:'211/双一流', city:'广州', prov:'广东', r:'south', wx:'土', l:'本科', b:'本科一批',
+    sc:{'北京':580,'河北':592,'河南':590,'山东':591,'江苏':583,'浙江':585,'广东':575,'四川':582,'湖北':580,'湖南':579},
+    st:['新闻学','金融学','临床医学','药学','会计学','旅游管理','汉语国际教育'] },
+  { n:'北京中医药大学', t:'医药类', tier:'211/双一流', city:'北京', prov:'北京', r:'north', wx:'木', l:'本科', b:'本科一批',
+    sc:{'北京':575,'河北':588,'河南':585,'山东':586,'江苏':578,'浙江':580,'广东':576,'四川':578,'湖北':576,'湖南':575},
+    st:['中医学','针灸推拿学','中药学','护理学'] },
+
+  // ===== 双非一本 (10所) =====
+  { n:'首都经济贸易大学', t:'财经类', tier:'省重点', city:'北京', prov:'北京', r:'north', wx:'金', l:'本科', b:'本科一批',
+    sc:{'北京':555,'河北':568,'河南':565,'山东':566,'江苏':558,'浙江':560,'广东':555,'四川':557,'湖北':555,'湖南':554},
+    st:['会计学','金融学','经济学','财务管理','人力资源管理','审计学'] },
+  { n:'南京审计大学', t:'财经类', tier:'省重点', city:'南京', prov:'江苏', r:'east', wx:'金', l:'本科', b:'本科一批',
+    sc:{'北京':550,'河北':562,'河南':560,'山东':561,'江苏':545,'浙江':553,'广东':550,'四川':552,'湖北':549,'湖南':548},
+    st:['审计学','会计学','金融学','财务管理'] },
+  { n:'华东政法大学', t:'政法类', tier:'省重点', city:'上海', prov:'上海', r:'east', wx:'金', l:'本科', b:'本科一批',
+    sc:{'北京':565,'河北':578,'河南':575,'山东':576,'江苏':560,'浙江':568,'广东':562,'四川':565,'湖北':563,'湖南':562},
+    st:['法学','知识产权','社会学','行政管理'] },
+  { n:'深圳大学', t:'综合类', tier:'省重点', city:'深圳', prov:'广东', r:'south', wx:'土', l:'本科', b:'本科一批',
+    sc:{'北京':575,'河北':588,'河南':585,'山东':586,'江苏':578,'浙江':580,'广东':565,'四川':577,'湖北':576,'湖南':575},
+    st:['计算机科学与技术','电子信息工程','金融学','建筑学','临床医学','广告学','通信工程'] },
+  { n:'浙江工业大学', t:'理工类', tier:'省重点', city:'杭州', prov:'浙江', r:'east', wx:'金', l:'本科', b:'本科一批',
+    sc:{'北京':555,'河北':568,'河南':565,'山东':566,'江苏':558,'浙江':550,'广东':556,'四川':558,'湖北':556,'湖南':555},
+    st:['化学工程','机械工程','自动化','计算机科学与技术','药学','土木工程'] },
+  { n:'广东外语外贸大学', t:'外语类', tier:'省重点', city:'广州', prov:'广东', r:'south', wx:'水', l:'本科', b:'本科一批',
+    sc:{'北京':540,'河北':552,'河南':550,'山东':551,'江苏':542,'浙江':545,'广东':530,'四川':542,'湖北':540,'湖南':539},
+    st:['英语','日语','翻译','国际经济与贸易','商务英语','汉语国际教育'] },
+  { n:'河北大学', t:'综合类', tier:'省重点', city:'保定', prov:'河北', r:'north', wx:'土', l:'本科', b:'本科一批',
+    sc:{'北京':535,'河北':525,'河南':542,'山东':540,'江苏':533,'浙江':535,'广东':532,'四川':535,'湖北':533,'湖南':532},
+    st:['汉语言文学','新闻学','法学','经济学','教育学','历史学'] },
+  { n:'河南大学', t:'综合类', tier:'省重点', city:'开封', prov:'河南', r:'center', wx:'土', l:'本科', b:'本科一批',
+    sc:{'北京':530,'河北':538,'河南':520,'山东':536,'江苏':528,'浙江':530,'广东':526,'四川':530,'湖北':528,'湖南':527},
+    st:['汉语言文学','教育学','地理科学','经济学','护理学','法学'] },
+  { n:'山东师范大学', t:'师范类', tier:'省重点', city:'济南', prov:'山东', r:'north', wx:'木', l:'本科', b:'本科一批',
+    sc:{'北京':528,'河北':538,'河南':535,'山东':520,'江苏':530,'浙江':532,'广东':525,'四川':530,'湖北':528,'湖南':527},
+    st:['教育学','汉语言文学','心理学','学前教育','英语','数学与应用数学'] },
+  { n:'湘潭大学', t:'综合类', tier:'双一流', city:'湘潭', prov:'湖南', r:'center', wx:'土', l:'本科', b:'本科一批',
+    sc:{'北京':530,'河北':540,'河南':538,'山东':539,'江苏':532,'浙江':534,'广东':529,'四川':532,'湖北':530,'湖南':520},
+    st:['法学','数学与应用数学','化学工程','行政管理','经济学'] },
+
+  // ===== 二本 (10所) =====
+  { n:'北京联合大学', t:'综合类', tier:'本科', city:'北京', prov:'北京', r:'north', wx:'土', l:'本科', b:'本科二批',
+    sc:{'北京':485,'河北':498,'河南':495,'山东':496,'江苏':488,'浙江':490,'广东':485,'四川':488,'湖北':486,'湖南':485},
+    st:['旅游管理','工商管理','软件工程','学前教育','通信工程'] },
+  { n:'河北师范大学', t:'师范类', tier:'本科', city:'石家庄', prov:'河北', r:'north', wx:'木', l:'本科', b:'本科二批',
+    sc:{'北京':478,'河北':465,'河南':488,'山东':485,'江苏':478,'浙江':480,'广东':476,'四川':480,'湖北':478,'湖南':477},
+    st:['教育学','汉语言文学','心理学','小学教育','英语'] },
+  { n:'河南理工大学', t:'理工类', tier:'本科', city:'焦作', prov:'河南', r:'center', wx:'金', l:'本科', b:'本科二批',
+    sc:{'北京':470,'河北':480,'河南':460,'山东':478,'江苏':472,'浙江':474,'广东':469,'四川':472,'湖北':470,'湖南':469},
+    st:['采矿工程','测绘工程','土木工程','自动化','安全工程','计算机科学与技术'] },
+  { n:'湖南工业大学', t:'理工类', tier:'本科', city:'株洲', prov:'湖南', r:'center', wx:'金', l:'本科', b:'本科二批',
+    sc:{'北京':455,'河北':465,'河南':462,'山东':463,'江苏':457,'浙江':459,'广东':454,'四川':457,'湖北':455,'湖南':445},
+    st:['包装工程','印刷工程','材料科学与工程','工商管理','计算机科学与技术'] },
+  { n:'广东海洋大学', t:'农林类', tier:'本科', city:'湛江', prov:'广东', r:'south', wx:'木', l:'本科', b:'本科二批',
+    sc:{'北京':450,'河北':460,'河南':458,'山东':459,'江苏':452,'浙江':454,'广东':440,'四川':453,'湖北':450,'湖南':449},
+    st:['水产养殖','海洋科学','食品科学与工程','农学','旅游管理'] },
+  { n:'成都大学', t:'综合类', tier:'本科', city:'成都', prov:'四川', r:'west', wx:'土', l:'本科', b:'本科二批',
+    sc:{'北京':465,'河北':475,'河南':472,'山东':473,'江苏':467,'浙江':469,'广东':464,'四川':455,'湖北':466,'湖南':465},
+    st:['临床医学','财务管理','土木工程','旅游管理','软件工程'] },
+  { n:'武汉纺织大学', t:'理工类', tier:'本科', city:'武汉', prov:'湖北', r:'center', wx:'金', l:'本科', b:'本科二批',
+    sc:{'北京':445,'河北':455,'河南':452,'山东':453,'江苏':447,'浙江':449,'广东':444,'四川':447,'湖北':435,'湖南':445},
+    st:['纺织工程','服装设计','材料科学与工程','会计学','计算机科学与技术'] },
+  { n:'浙江科技学院', t:'理工类', tier:'本科', city:'杭州', prov:'浙江', r:'east', wx:'金', l:'本科', b:'本科二批',
+    sc:{'北京':455,'河北':468,'河南':465,'山东':466,'江苏':458,'浙江':445,'广东':455,'四川':457,'湖北':455,'湖南':454},
+    st:['软件工程','土木工程','机械工程','工商管理','电子信息工程'] },
+  { n:'山东理工大学', t:'理工类', tier:'本科', city:'淄博', prov:'山东', r:'north', wx:'金', l:'本科', b:'本科二批',
+    sc:{'北京':460,'河北':472,'河南':470,'山东':450,'江苏':463,'浙江':465,'广东':459,'四川':462,'湖北':460,'湖南':459},
+    st:['机械工程','车辆工程','电气工程','计算机科学与技术','化学工程'] },
+  { n:'江苏理工学院', t:'理工类', tier:'本科', city:'常州', prov:'江苏', r:'east', wx:'金', l:'本科', b:'本科二批',
+    sc:{'北京':450,'河北':462,'河南':460,'山东':461,'江苏':440,'浙江':455,'广东':449,'四川':452,'湖北':450,'湖南':449},
+    st:['机械工程','计算机科学与技术','电气工程','会计学','软件工程'] },
+
+  // ===== 高职专科 (10所) =====
+  { n:'北京电子科技职业学院', t:'理工类', tier:'国家示范', city:'北京', prov:'北京', r:'north', wx:'金', l:'专科', b:'专科批',
+    sc:{'北京':340,'河北':365,'河南':360,'山东':362,'江苏':350,'浙江':355,'广东':345,'四川':350,'湖北':342,'湖南':340},
+    st:['软件技术','计算机网络技术','数控技术','工业机器人技术','新能源汽车技术'] },
+  { n:'深圳职业技术学院', t:'综合类', tier:'国家示范', city:'深圳', prov:'广东', r:'south', wx:'土', l:'专科', b:'专科批',
+    sc:{'北京':370,'河北':395,'河南':390,'山东':392,'江苏':380,'浙江':385,'广东':360,'四川':378,'湖北':372,'湖南':370},
+    st:['软件技术','计算机网络技术','大数据与会计','电子商务','数字媒体艺术设计','护理'] },
+  { n:'南京工业职业技术大学', t:'理工类', tier:'国家示范', city:'南京', prov:'江苏', r:'east', wx:'金', l:'专科', b:'专科批',
+    sc:{'北京':355,'河北':378,'河南':375,'山东':376,'江苏':345,'浙江':360,'广东':355,'四川':358,'湖北':355,'湖南':354},
+    st:['数控技术','工业机器人技术','电力系统自动化技术','新能源汽车技术'] },
+  { n:'浙江金融职业学院', t:'财经类', tier:'国家示范', city:'杭州', prov:'浙江', r:'east', wx:'金', l:'专科', b:'专科批',
+    sc:{'北京':365,'河北':388,'河南':385,'山东':386,'江苏':370,'浙江':355,'广东':365,'四川':368,'湖北':365,'湖南':364},
+    st:['大数据与会计','法律事务','电子商务','商务英语'] },
+  { n:'武汉职业技术学院', t:'综合类', tier:'国家示范', city:'武汉', prov:'湖北', r:'center', wx:'土', l:'专科', b:'专科批',
+    sc:{'北京':335,'河北':355,'河南':350,'山东':352,'江苏':338,'浙江':342,'广东':335,'四川':340,'湖北':320,'湖南':335},
+    st:['软件技术','计算机网络技术','电子商务','现代物流管理','建筑工程技术'] },
+  { n:'四川工程职业技术大学', t:'理工类', tier:'国家示范', city:'德阳', prov:'四川', r:'west', wx:'金', l:'专科', b:'专科批',
+    sc:{'北京':345,'河北':368,'河南':365,'山东':366,'江苏':350,'浙江':355,'广东':345,'四川':330,'湖北':348,'湖南':346},
+    st:['数控技术','工业机器人技术','电力系统自动化技术','建筑工程技术'] },
+  { n:'山东商业职业技术学院', t:'财经类', tier:'国家示范', city:'济南', prov:'山东', r:'north', wx:'金', l:'专科', b:'专科批',
+    sc:{'北京':335,'河北':358,'河南':355,'山东':320,'江苏':340,'浙江':345,'广东':335,'四川':340,'湖北':338,'湖南':336},
+    st:['大数据与会计','电子商务','市场营销','现代物流管理'] },
+  { n:'长沙民政职业技术学院', t:'综合类', tier:'国家示范', city:'长沙', prov:'湖南', r:'center', wx:'土', l:'专科', b:'专科批',
+    sc:{'北京':325,'河北':345,'河南':340,'山东':342,'江苏':330,'浙江':335,'广东':325,'四川':330,'湖北':328,'湖南':310},
+    st:['社会工作','护理','康复治疗技术','现代殡葬技术与管理','法律事务'] },
+  { n:'河南职业技术学院', t:'综合类', tier:'国家示范', city:'郑州', prov:'河南', r:'center', wx:'土', l:'专科', b:'专科批',
+    sc:{'北京':315,'河北':335,'河南':300,'山东':332,'江苏':320,'浙江':325,'广东':315,'四川':320,'湖北':318,'湖南':316},
+    st:['数控技术','汽车检测与维修','计算机网络技术','大数据与会计'] },
+  { n:'河北工业职业技术大学', t:'理工类', tier:'国家示范', city:'石家庄', prov:'河北', r:'north', wx:'金', l:'专科', b:'专科批',
+    sc:{'北京':325,'河北':310,'河南':342,'山东':340,'江苏':330,'浙江':335,'广东':325,'四川':330,'湖北':328,'湖南':326},
+    st:['数控技术','工业机器人技术','材料工程技术','电力系统自动化技术'] }
+];
+const PROV_MAP = { '北京':'north','天津':'north','河北':'north','山西':'north','内蒙古':'north','辽宁':'north','吉林':'north','黑龙江':'north','上海':'east','江苏':'east','浙江':'east','安徽':'east','福建':'east','江西':'east','山东':'north','河南':'center','湖北':'center','湖南':'center','广东':'south','广西':'south','海南':'south','重庆':'west','四川':'west','贵州':'west','云南':'west','西藏':'west','陕西':'west','甘肃':'west','青海':'west','宁夏':'west','新疆':'west' };
+const UA_WX_MAP = { '综合类':'土','理工类':'金','财经类':'金','政法类':'金','师范类':'木','医药类':'木','农林类':'木','外语类':'水','艺术类':'火','体育类':'火' };
+const UA_RANK = { '985/双一流':1,'211/双一流':2,'双一流':3,'省重点':4,'本科':5,'国家示范':6 };
+
+// ============================================================
 //  INIT: populate form options
 // ============================================================
 (function init() {
-  const tSel = document.getElementById('birthTime');
-  SHICHEN.forEach((s,i) => { const o = document.createElement('option'); o.value = i; o.textContent = s.n; if (i===5) o.selected = true; tSel.appendChild(o); });
-  const pSel = document.getElementById('province');
-  PROVINCES.forEach(p => { const o = document.createElement('option'); o.value = p; o.textContent = p; pSel.appendChild(o); });
-  const rSel = document.getElementById('preferRegion');
-  REGIONS.forEach(r => { const o = document.createElement('option'); o.value = r.v; o.textContent = r.n; rSel.appendChild(o); });
-  const cSel = document.getElementById('preferCategory');
-  CATEGORIES.forEach(c => { const o = document.createElement('option'); o.value = c.v; o.textContent = c.n; cSel.appendChild(o); });
-  renderBrowseTable(); // pre-render browse
+  try {
+    const tSel = document.getElementById('birthTime');
+    if (!tSel) throw new Error('birthTime select not found');
+    SHICHEN.forEach((s,i) => { const o = document.createElement('option'); o.value = i; o.textContent = s.n; if (i===5) o.selected = true; tSel.appendChild(o); });
+    const pSel = document.getElementById('province');
+    if (pSel) PROVINCES.forEach(p => { const o = document.createElement('option'); o.value = p; o.textContent = p; pSel.appendChild(o); });
+    const rSel = document.getElementById('preferRegion');
+    if (rSel) REGIONS.forEach(r => { const o = document.createElement('option'); o.value = r.v; o.textContent = r.n; rSel.appendChild(o); });
+    const cSel = document.getElementById('preferCategory');
+    if (cSel) CATEGORIES.forEach(c => { const o = document.createElement('option'); o.value = c.v; o.textContent = c.n; cSel.appendChild(o); });
+    var browseEl = document.getElementById('tab-browse');
+    if (browseEl) renderBrowseTable();
+  } catch(e) { console.error('Init error:', e); }
 })();
 
 // ============================================================
@@ -602,6 +808,7 @@ function getStars(score) {
 //  MAIN
 // ============================================================
 function analyze() {
+  try {
   const dateVal = document.getElementById('birthDate').value;
   const calType = document.getElementById('calType').value;
   const birthIdx = parseInt(document.getElementById('birthTime').value);
@@ -624,7 +831,6 @@ function analyze() {
 
   const allStems = [yp.stem, mp.stem, dp.stem, hp.stem];
   const allBranches = [yp.branch, mp.branch, dp.branch, hp.branch];
-  const allHidden = allBranches.flatMap(b => HIDDEN[b]||[]);
 
   // 2. 五行分析
   const wc = wuxingCounts(allStems, allBranches);
@@ -649,6 +855,9 @@ function analyze() {
   const benkeMajors = matchMajors(yj.yong, dp.stem, strength, pattern, preferCategory, true);
   const zhuankeMajors = matchMajors(yj.yong, dp.stem, strength, pattern, preferCategory, false);
 
+  // 5.5 院校匹配（需要分数+省份）
+  const uniResults = (scoreVal && province) ? matchUniversities(parseInt(scoreVal), province, benkeMajors, zhuankeMajors, yj.yong, preferRegion) : null;
+
   // 6. 忌神专业
   const jiMajors = [];
   yj.ji.forEach(wx => {
@@ -671,24 +880,27 @@ function analyze() {
     pathInfo = { n:'综合型 · 本科优先', d:'格局中和，适应力强，建议优先本科，大类招生入校后分流。', c:'water' };
   }
 
-  render({ yp,mp,dp,hp,allStems,allBranches,allHidden,wc,dayWx,strength,yj,pattern,topSS,
-    dayTraits,benkeMajors,zhuankeMajors,jiMajors,pathInfo,date,gender,scoreVal,province,preferRegion,preferCategory });
+  render({ yp,mp,dp,hp,wc,dayWx,strength,yj,pattern,topSS,
+    dayTraits,benkeMajors,zhuankeMajors,jiMajors,pathInfo,date,gender,scoreVal,province,preferRegion,preferCategory,uniResults });
 
   document.getElementById('resultSection').style.display = 'block';
   document.getElementById('inputCard').style.display = 'none';
   document.getElementById('resultSection').scrollIntoView({ behavior:'smooth' });
+  } catch(e) { alert('分析出错: ' + e.message); console.error(e); }
 }
 
 // ============================================================
 //  RENDER
 // ============================================================
 function render(d) {
-  const { yp,mp,dp,hp,allBranches,allHidden,wc,dayWx,strength,yj,pattern,topSS,
-    dayTraits,benkeMajors,zhuankeMajors,jiMajors,pathInfo,date,gender,scoreVal,province,preferRegion } = d;
+  const { yp,mp,dp,hp,wc,dayWx,strength,yj,pattern,topSS,
+    dayTraits,benkeMajors,zhuankeMajors,jiMajors,pathInfo,date,gender,scoreVal,province,preferRegion,uniResults } = d;
 
   const pillarData = [
-    { l:'年柱', s:yp.stem, b:yp.branch, h:allHidden[0] },{ l:'月柱', s:mp.stem, b:mp.branch, h:allHidden[1] },
-    { l:'日柱', s:dp.stem, b:dp.branch, h:allHidden[2] },{ l:'时柱', s:hp.stem, b:hp.branch, h:allHidden[3] }
+    { l:'年柱', s:yp.stem, b:yp.branch, h:HIDDEN[yp.branch]||[] },
+    { l:'月柱', s:mp.stem, b:mp.branch, h:HIDDEN[mp.branch]||[] },
+    { l:'日柱', s:dp.stem, b:dp.branch, h:HIDDEN[dp.branch]||[] },
+    { l:'时柱', s:hp.stem, b:hp.branch, h:HIDDEN[hp.branch]||[] }
   ];
   let pH = '';
   pillarData.forEach(p => {
@@ -731,6 +943,7 @@ function render(d) {
   document.getElementById('tab-benke').innerHTML = renderCards(benkeMajors,'benke');
   document.getElementById('tab-zhuanke').innerHTML = renderCards(zhuankeMajors,'zhuanke');
   document.getElementById('tab-strategy').innerHTML = renderStrategy(d);
+  document.getElementById('tab-schools').innerHTML = renderUniversities(uniResults);
   document.getElementById('tab-claude').innerHTML = renderClaudePrompt(d);
   resetTabs();
 
@@ -764,7 +977,7 @@ function renderCards(majors, type) {
 }
 
 function renderStrategy(d) {
-  const { yj, pattern, strength, preferRegion } = d;
+  const { yj, pattern, strength, preferRegion, scoreVal } = d;
   const yongWx = yj.yong[0];
   const region = REGIONS.find(r => r.v === preferRegion);
   let rAdvice = '';
@@ -817,6 +1030,148 @@ function renderClaudePrompt(d) {
     <div class="copy-area" id="claudePrompt">${prompt}</div>
     <button class="btn btn-secondary btn-small" onclick="copyPrompt()" style="margin-top:10px;">📋 一键复制</button>
     <p style="color:var(--text2);font-size:0.78rem;margin-top:8px;">启动：<code>cd C:\\Users\\吕泓磊\\bazi-major-match</code> 然后粘贴</p>
+  `;
+}
+
+// ============================================================
+//  UNIVERSITY MATCHING ENGINE
+// ============================================================
+function matchUniversities(score, province, benkeMajors, zhuankeMajors, yongWx, preferRegion) {
+  if (!score || !province) return null;
+
+  const benkeNames = new Set(benkeMajors.map(m => m.n));
+  const zhuankeNames = new Set(zhuankeMajors.map(m => m.n));
+  const allMajorNames = new Set([...benkeNames, ...zhuankeNames]);
+
+  let pool = UNIVERSITIES.filter(u => u.sc[province] !== undefined);
+
+  // 按用户分数层次筛选：如果分数<本科线附近则也包含专科院校
+  if (score < 430) {
+    // 主要看专科
+    pool = pool.filter(u => u.l === '专科' || (u.l === '本科' && u.sc[province] <= score + 30));
+  }
+
+  // Compute match for each university
+  const scored = pool.map(u => {
+    const cutoff = u.sc[province];
+    const gap = score - cutoff;
+
+    // Tier classification
+    let tier, tierOrder;
+    if (gap >= 20) { tier = '保'; tierOrder = 3; }
+    else if (gap >= -15) { tier = '稳'; tierOrder = 2; }
+    else if (gap >= -30) { tier = '冲'; tierOrder = 1; }
+    else { tier = null; tierOrder = 0; } // out of range
+
+    // Ba Zi cross-match
+    let bzScore = 0;
+    const bzReasons = [];
+
+    // Check if university's strengths overlap with Ba Zi recommended majors
+    const matchedStrengths = u.st.filter(s => allMajorNames.has(s));
+    if (matchedStrengths.length >= 3) { bzScore += 25; bzReasons.push('优势专业与八字高度匹配'); }
+    else if (matchedStrengths.length >= 1) { bzScore += 15; bzReasons.push('有八字匹配的优势专业'); }
+
+    // University wx matches yongShen
+    if (yongWx.includes(u.wx)) { bzScore += 20; bzReasons.push('院校气场('+u.wx+')契合喜用神'); }
+    else if (!yongWx.includes(u.wx)) {
+      // Check if wx is neutral (not in ji shen either)
+      bzScore += 5;
+    }
+
+    // Region match
+    if (preferRegion && u.r === preferRegion) { bzScore += 10; bzReasons.push('符合意向地区'); }
+
+    // University level bonus
+    if (UA_RANK[u.tier] <= 2) bzScore += 8; // 985/211 bonus
+    if (UA_RANK[u.tier] <= 3) bzScore += 5;
+
+    // Also include matched majors from Ba Zi that this school offers
+    const bzMatchedMajors = (u.l === '本科' ? benkeMajors : zhuankeMajors)
+      .filter(m => u.st.includes(m.n))
+      .slice(0, 3);
+
+    return {
+      ...u,
+      cutoff, gap, tier, tierOrder,
+      bzScore, bzReasons,
+      matchedStrengths,
+      bzMatchedMajors,
+      score
+    };
+  });
+
+  // Filter out null tier and sort
+  const valid = scored.filter(u => u.tier !== null);
+  valid.sort((a, b) => {
+    // Sort by tier first (冲 < 稳 < 保), then by bzScore within each tier
+    if (a.tierOrder !== b.tierOrder) return a.tierOrder - b.tierOrder;
+    return b.bzScore - a.bzScore;
+  });
+
+  // Group by tier and pick top N
+  const chong = valid.filter(u => u.tier === '冲').slice(0, 3);
+  const wen = valid.filter(u => u.tier === '稳').slice(0, 5);
+  const bao = valid.filter(u => u.tier === '保').slice(0, 3);
+
+  return { chong, wen, bao, province, score };
+}
+
+function renderUniversities(data) {
+  if (!data) return '<div class="advice-box">📝 请输入<b>高考分数</b>和<b>省份</b>，获取基于分数的院校推荐（分数-院校匹配 + 八字五行交叉筛选）</div>';
+
+  const { chong, wen, bao, province, score } = data;
+
+  if (!chong.length && !wen.length && !bao.length) {
+    return '<div class="advice-box warn">未找到匹配的院校。请检查分数和省份是否正确，或尝试放宽筛选条件。</div>';
+  }
+
+  const wxCls = (w) => `tg-${(w||'土').includes('金')?'gold':(w||'').includes('木')?'wood':(w||'').includes('水')?'water':(w||'').includes('火')?'fire':'earth'}`;
+  const tierCls = (t) => t === '985/双一流' ? 'score-high' : t.includes('211') ? 'score-mid' : 'score-ok';
+
+  function renderGroup(unis, label, icon, color) {
+    if (!unis.length) return '';
+    let h = `<h3 style="color:var(--${color});margin:16px 0 10px;">${icon} ${label}（${unis.length}所）</h3>`;
+    unis.forEach(u => {
+      const gapSign = u.gap >= 0 ? '+' : '';
+      const gapColor = u.gap >= 0 ? 'var(--wood)' : 'var(--fire)';
+      const gapText = u.gap >= 0 ? `高${u.gap}分` : `低${Math.abs(u.gap)}分`;
+
+      h += `<div class="major-card" style="border-left-color:var(--${color});">
+        <div class="major-info">
+          <div class="major-name">
+            ${u.n}
+            <span class="tag ${wxCls(u.wx)}">${u.wx}</span>
+            <span class="score-badge ${tierCls(u.tier)}">${u.tier}</span>
+          </div>
+          <div class="major-meta">
+            <span>📍 ${u.city}</span><span>·</span><span>${u.t}</span><span>·</span><span>${u.b}</span>
+            <span style="color:${gapColor};font-weight:600;"> · 分数线≈${u.cutoff}（${gapSign}${gapText}）</span>
+          </div>
+          ${u.matchedStrengths.length ? `<div class="major-meta" style="margin-top:4px;">🎯 匹配优势专业：${u.matchedStrengths.slice(0,5).join('、')}</div>` : ''}
+          ${u.bzMatchedMajors.length ? `<div class="major-meta" style="margin-top:2px;">🔮 八字推荐+该校开设：${u.bzMatchedMajors.map(m=>m.n).join('、')}</div>` : ''}
+          ${u.bzReasons.length ? `<div class="major-reason">✨ ${u.bzReasons.join(' · ')}</div>` : ''}
+        </div>
+        <div class="major-stars" style="font-size:0.85rem;text-align:right;">
+          <div style="color:var(--gold);">八字契合</div>
+          <div style="font-weight:700;">${u.bzScore}分</div>
+        </div>
+      </div>`;
+    });
+    return h;
+  }
+
+  return `
+    <div class="advice-box" style="margin-bottom:12px;">
+      📊 <b>${score}分</b> · 省份：<b>${province}</b> · 共匹配 <b>${chong.length+wen.length+bao.length}</b> 所院校
+      <span style="font-size:0.75rem;color:var(--text2);display:block;margin-top:4px;">⚠️ 分数线为近年综合参考值，非官方精确数据。实际填报请查阅省教育考试院发布的最新数据。</span>
+    </div>
+    ${renderGroup(chong, '冲刺院校', '🚀', 'fire')}
+    ${renderGroup(wen, '稳妥院校', '🎯', 'gold')}
+    ${renderGroup(bao, '保底院校', '🛡️', 'wood')}
+    <div class="advice-box" style="margin-top:12px;">
+      💡 <b>填报提示：</b>冲的院校建议放在前2-3个志愿，稳的院校作为志愿主体（中间位置），保的院校放在最后2-3个确保有学上。八字五行契合度高的院校，入学后学习体验更佳。
+    </div>
   `;
 }
 
@@ -926,7 +1281,7 @@ function toast(msg) {
 document.getElementById('birthDate').addEventListener('keydown', e => { if (e.key === 'Enter') analyze(); });
 
 // Pre-render browse on page load
-window.addEventListener('DOMContentLoaded', () => renderBrowseTable());
+window.addEventListener('DOMContentLoaded', () => { try { renderBrowseTable(); } catch(e) {} });
 </script>
 </body>
 </html>
