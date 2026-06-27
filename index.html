@@ -771,7 +771,7 @@ function renderCards(majors, type) {
 }
 
 function renderStrategy(d) {
-  const { yj, pattern, strength, preferRegion } = d;
+  const { yj, pattern, strength, preferRegion, scoreVal } = d;
   const yongWx = yj.yong[0];
   const region = REGIONS.find(r => r.v === preferRegion);
   let rAdvice = '';
