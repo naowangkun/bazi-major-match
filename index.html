@@ -629,7 +629,8 @@ function analyze() {
 
   const allStems = [yp.stem, mp.stem, dp.stem, hp.stem];
   const allBranches = [yp.branch, mp.branch, dp.branch, hp.branch];
-  const allHidden = allBranches.flatMap(b => HIDDEN[b]||[]);
+  const allHiddenArr = allBranches.map(b => HIDDEN[b]||[]);
+  const allHiddenFlat = allHiddenArr.flat();
 
   // 2. 五行分析
   const wc = wuxingCounts(allStems, allBranches);
@@ -676,7 +677,7 @@ function analyze() {
     pathInfo = { n:'综合型 · 本科优先', d:'格局中和，适应力强，建议优先本科，大类招生入校后分流。', c:'water' };
   }
 
-  render({ yp,mp,dp,hp,allStems,allBranches,allHidden,wc,dayWx,strength,yj,pattern,topSS,
+  render({ yp,mp,dp,hp,allStems,allBranches,allHiddenArr,wc,dayWx,strength,yj,pattern,topSS,
     dayTraits,benkeMajors,zhuankeMajors,jiMajors,pathInfo,date,gender,scoreVal,province,preferRegion,preferCategory });
 
   document.getElementById('resultSection').style.display = 'block';
@@ -689,12 +690,12 @@ function analyze() {
 //  RENDER
 // ============================================================
 function render(d) {
-  const { yp,mp,dp,hp,allBranches,allHidden,wc,dayWx,strength,yj,pattern,topSS,
+  const { yp,mp,dp,hp,allBranches,allHiddenArr,wc,dayWx,strength,yj,pattern,topSS,
     dayTraits,benkeMajors,zhuankeMajors,jiMajors,pathInfo,date,gender,scoreVal,province,preferRegion } = d;
 
   const pillarData = [
-    { l:'年柱', s:yp.stem, b:yp.branch, h:allHidden[0] },{ l:'月柱', s:mp.stem, b:mp.branch, h:allHidden[1] },
-    { l:'日柱', s:dp.stem, b:dp.branch, h:allHidden[2] },{ l:'时柱', s:hp.stem, b:hp.branch, h:allHidden[3] }
+    { l:'年柱', s:yp.stem, b:yp.branch, h:allHiddenArr[0] },{ l:'月柱', s:mp.stem, b:mp.branch, h:allHiddenArr[1] },
+    { l:'日柱', s:dp.stem, b:dp.branch, h:allHiddenArr[2] },{ l:'时柱', s:hp.stem, b:hp.branch, h:allHiddenArr[3] }
   ];
   let pH = '';
   pillarData.forEach(p => {
